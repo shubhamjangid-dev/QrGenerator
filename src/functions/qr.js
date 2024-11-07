@@ -1,7 +1,8 @@
 import { getEDC } from "./correctionHandle";
 import { getByteData } from "./getByteData";
 
-length = 2 * 4 + 17;
+let length;
+let codeword;
 let qr;
 let fillingOrder;
 function makeSquare(i, j) {
@@ -135,28 +136,28 @@ function setFormatBits() {
   qr[1][8] = 0;
   qr[0][8] = 0;
 
-  qr[8][17] = 1;
-  qr[8][18] = 1;
-  qr[8][19] = 1;
-  qr[8][20] = 1;
-  qr[8][21] = 1;
-  qr[8][22] = 1;
-  qr[8][23] = 0;
-  qr[8][24] = 0;
+  qr[8][length - 8] = 1;
+  qr[8][length - 7] = 1;
+  qr[8][length - 6] = 1;
+  qr[8][length - 5] = 1;
+  qr[8][length - 4] = 1;
+  qr[8][length - 3] = 1;
+  qr[8][length - 2] = 0;
+  qr[8][length - 1] = 0;
 
-  qr[17][8] = 1;
-  qr[18][8] = 0;
-  qr[19][8] = 1;
-  qr[20][8] = 1;
-  qr[21][8] = 1;
-  qr[22][8] = 1;
-  qr[23][8] = 0;
-  qr[24][8] = 1;
+  qr[length - 8][8] = 1;
+  qr[length - 7][8] = 0;
+  qr[length - 6][8] = 1;
+  qr[length - 5][8] = 1;
+  qr[length - 4][8] = 1;
+  qr[length - 3][8] = 1;
+  qr[length - 2][8] = 0;
+  qr[length - 1][8] = 1;
 }
 function setTimingBits() {
   let i = 8;
   let j = 6;
-  while (i <= 16) {
+  while (i <= length - 9) {
     qr[i][j] = 1;
     qr[i + 1][j] = 0;
     qr[j][i] = 1;
@@ -165,8 +166,8 @@ function setTimingBits() {
   }
 }
 function getFillingOrder() {
-  let i = 24;
-  let j = 24;
+  let i = length - 1;
+  let j = length - 1;
   let dir = -1;
   let fillingOrder = [];
   while (j > -1) {
@@ -175,9 +176,9 @@ function getFillingOrder() {
       i = 0;
       dir = 1;
     }
-    if (i == 25) {
+    if (i == length) {
       j -= 2;
-      i = 24;
+      i = length - 1;
       dir = -1;
     }
     if (j == 6) j--;
@@ -194,11 +195,11 @@ function getFillingOrder() {
 function fillQr(url) {
   let fillIndex = 0;
   const byteData = getByteData(url);
-  const data = getEDC(byteData, 44);
+  const data = getEDC(byteData, codeword);
   let num = 0;
   for (let i = 0; i < data.length && fillIndex < fillingOrder.length; i++) {
     let val = data[i];
-    for (let s = 7; s >= 0; s--) {
+    for (let s = 7; s >= 0 && fillIndex < fillingOrder.length; s--) {
       const [row, col] = fillingOrder[fillIndex];
 
       // qr[row][col] = num++;
@@ -221,13 +222,39 @@ function fillQr(url) {
   }
 }
 
+function getVersion(urlLength) {
+  if (urlLength < 12) {
+    codeword = 26;
+    return 1;
+  } else if (urlLength < 24) {
+    codeword = 44;
+    return 2;
+  } else if (urlLength < 40) {
+    codeword = 70;
+    return 3;
+  } else if (urlLength < 70) {
+    codeword = 100;
+    return 4;
+  } else if (urlLength < 250) {
+    codeword = 346;
+    return 10;
+  }
+}
 function getQr(url) {
+  length = getVersion(url.length) * 4 + 17;
   qr = Array.from({ length }, () => new Uint8Array(length).fill(255));
   fillingOrder = [];
   makeSquare(0, 0);
-  makeSquare(18, 0);
-  makeSquare(0, 18);
-  makePositionSmallSquare(16, 16);
+  makeSquare(length - 7, 0);
+  makeSquare(0, length - 7);
+  if (length > 21) makePositionSmallSquare(length - 9, length - 9);
+  if (length == 57) {
+    makePositionSmallSquare(length - 9, 26);
+    makePositionSmallSquare(26, length - 9);
+    makePositionSmallSquare(26, 26);
+    makePositionSmallSquare(4, 26);
+    makePositionSmallSquare(26, 4);
+  }
   setFormatBits();
   setTimingBits();
 
@@ -239,13 +266,13 @@ function getQr(url) {
 
   // return qr;
   let QrCode = [];
-  for (let i = 0; i < 25; i++) {
+  for (let i = 0; i < length; i++) {
     let row = [];
-    for (let j = 0; j < 25; j++) {
+    for (let j = 0; j < length; j++) {
       row.push(qr[i][j]);
     }
     QrCode.push(row);
   }
   return QrCode;
 }
-export { getQr };
+export { getQr, getVersion };

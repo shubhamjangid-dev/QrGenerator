@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import "./App.css";
-import { getQr } from "./functions/qr";
+import { getQr, getVersion } from "./functions/qr";
 function App() {
   const [url, setUrl] = useState("");
+  const [size, setSize] = useState(21);
   const [data, setData] = useState(null);
   const create = () => {
     const code = getQr(url);
+    setSize(getVersion(url.length) * 4 + 17);
     setData(code);
   };
 
@@ -30,7 +32,9 @@ function App() {
           Generate
         </button>
       </div>
-      <div className="max-w-[300px] grid grid-cols-25 mx-auto my-3">
+      <div
+        className={`max-w-[${12 * size}px] grid ${size == 21 ? "grid-cols-21" : size == 25 ? "grid-cols-25" : size == 29 ? "grid-cols-29" : size == 33 ? "grid-cols-33" : "grid-cols-57"} mx-auto my-3`}
+      >
         {data &&
           data.map(row =>
             row.map(ele => (
